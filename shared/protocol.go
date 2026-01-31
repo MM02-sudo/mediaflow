@@ -12,4 +12,4 @@ type Response struct {
 	Data   interface{} `json:"data"`
 }
 
-// interface{} means that it czan be any type of data
+// interface{} means that it can be any type of data
