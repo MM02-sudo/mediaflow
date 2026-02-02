@@ -1,15 +1,20 @@
-// this code can be used by other programs
-
 package shared
 
+// Request from client to server
 type Request struct {
-	Action string `json:"action"`
-	Path   string `json:"path"`
+	Action string `json:"action"` // "list" or "stream"
+	Path   string `json:"path"`   // file/folder path
 }
 
+// Response from server to client
 type Response struct {
-	Succes bool        `json:"success"`
-	Data   interface{} `json:"data"`
+	Success bool       `json:"success"`
+	Error   string     `json:"error,omitempty"`
+	Files   []FileInfo `json:"files,omitempty"`
 }
 
-// interface{} means that it can be any type of data
+// FileInfo describes a file or folder
+type FileInfo struct {
+	Name  string `json:"name"`
+	IsDir bool   `json:"is_dir"`
+}
