@@ -13,9 +13,9 @@ import (
 func main() {
 	// this part tells the server when someone sends a request to /
 	http.HandleFunc("/", requestHandler)
+	http.HandleFunc("/stream", actualStreamHandler)
 
 	// servers listens for requests on port 8080 it uses default settings(nil) and if it crashes it shows an error and exits with log.Fatal
-
 	fmt.Println("Server starting on port: 8080...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -102,18 +102,43 @@ func handleStream(w http.ResponseWriter, path string) {
 		return
 	}
 
-	// open the video file
-	file, err := os.Open(path)
-	if err != nil {
-		sendError(w, "Cannot open file")
+	// Send back the stream URL (don't actually stream yet!)
+	streamURL := fmt.Sprintf("http://localhost:8080/stream?path=%s", path)
+	response := shared.Response{
+		Success:   true,
+		StreamURL: streamURL,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func actualStreamHandler(w http.ResponseWriter, r *http.Request) {
+	// Get the file path from URL parameter
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "No path provided", http.StatusBadRequest)
 		return
 	}
-	defer file.Close() // close whene done
 
-	// setting header for video streaming
+	// Open the video file
+	file, err := os.Open(path)
+	if err != nil {
+		http.Error(w, "Cannot open file", http.StatusNotFound)
+		return
+	}
+	defer file.Close()
+
+	// Get file info
+	info, err := file.Stat()
+	if err != nil {
+		http.Error(w, "Cannot read file info", http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers for video streaming
 	w.Header().Set("Content-Type", "video/mp4")
 	w.Header().Set("Accept-Ranges", "bytes")
 
-	// straing file on client machine
-	http.ServeContent(w, nil, info.Name(), info.ModTime(), file)
+	// Stream file to client
+	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
 }
