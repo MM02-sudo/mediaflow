@@ -2,17 +2,24 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/MM02-sudo/mediaflow/shared"
 )
 
 func main() {
+	publicAddr := flag.String("public", "localhost:8080", "Public address for stream URLs")
+	flag.Parse()
+
 	// this part tells the server when someone sends a request to /
-	http.HandleFunc("/", requestHandler)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		requestHandler(w, r, *publicAddr)
+	})
 	http.HandleFunc("/stream", actualStreamHandler)
 
 	// servers listens for requests on port 8080 it uses default settings(nil) and if it crashes it shows an error and exits with log.Fatal
@@ -21,7 +28,7 @@ func main() {
 }
 
 // request handler here
-func requestHandler(w http.ResponseWriter, request *http.Request) {
+func requestHandler(w http.ResponseWriter, request *http.Request, publicAddr string) {
 	// reading Json file
 	var req shared.Request
 	err := json.NewDecoder(request.Body).Decode(&req)
@@ -35,7 +42,7 @@ func requestHandler(w http.ResponseWriter, request *http.Request) {
 	if req.Action == "list" {
 		handleList(w, req.Path)
 	} else if req.Action == "stream" {
-		handleStream(w, req.Path)
+		handleStream(w, req.Path, publicAddr)
 	} else {
 		sendError(w, "Unknown action, Try following actions")
 	}
@@ -88,7 +95,7 @@ func sendError(w http.ResponseWriter, message string) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func handleStream(w http.ResponseWriter, path string) {
+func handleStream(w http.ResponseWriter, path string, publicAddr string) {
 	// does path exists?
 	info, err := os.Stat(path)
 	if err != nil {
@@ -103,7 +110,7 @@ func handleStream(w http.ResponseWriter, path string) {
 	}
 
 	// Send back the stream URL (don't actually stream yet!)
-	streamURL := fmt.Sprintf("http://localhost:8080/stream?path=%s", path)
+	streamURL := fmt.Sprintf("http://%s/stream?path=%s", publicAddr, path)
 	response := shared.Response{
 		Success:   true,
 		StreamURL: streamURL,
@@ -128,17 +135,6 @@ func actualStreamHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Get file info
-	info, err := file.Stat()
-	if err != nil {
-		http.Error(w, "Cannot read file info", http.StatusInternalServerError)
-		return
-	}
-
-	// Set headers for video streaming
-	w.Header().Set("Content-Type", "video/mp4")
-	w.Header().Set("Accept-Ranges", "bytes")
-
-	// Stream file to client
-	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+	// Serve the file
+	http.ServeContent(w, r, path, time.Time{}, file)
 }
