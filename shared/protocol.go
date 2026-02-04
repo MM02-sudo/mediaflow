@@ -8,9 +8,10 @@ type Request struct {
 
 // Response from server to client
 type Response struct {
-	Success bool       `json:"success"`
-	Error   string     `json:"error,omitempty"`
-	Files   []FileInfo `json:"files,omitempty"`
+	Success   bool       `json:"success"`
+	Error     string     `json:"error,omitempty"`
+	Files     []FileInfo `json:"files,omitempty"`
+	StreamURL string     `json:"stream_url,omitempty"`
 }
 
 // FileInfo describes a file or folder
